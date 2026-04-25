@@ -17,7 +17,7 @@ const defaultOptions: Options = {
   folderDefaultState: "collapsed",
   folderClickBehavior: "link",
   useSavedState: true,
-  defaultTab: "year",
+  defaultTab: "tag",
 }
 
 let numTabbedExplorers = 0
@@ -87,42 +87,37 @@ export default ((userOpts?: Partial<Options>) => {
         <div id={id} class="explorer-content" aria-expanded={false} role="group">
           {/* Tab buttons */}
           <div class="explorer-tabs">
-            <button
-              class={`tab-btn${opts.defaultTab === "year" ? " active" : ""}`}
-              data-tab="year"
-            >
-              연도
-            </button>
-            <button
-              class={`tab-btn${opts.defaultTab === "folder" ? " active" : ""}`}
-              data-tab="folder"
-            >
-              폴더
-            </button>
-            <button
-              class={`tab-btn${opts.defaultTab === "tag" ? " active" : ""}`}
-              data-tab="tag"
-            >
+            <button class={`tab-btn${opts.defaultTab === "tag" ? " active" : ""}`} data-tab="tag">
               태그
             </button>
+            <button class={`tab-btn${opts.defaultTab === "year" ? " active" : ""}`} data-tab="year">
+              연도
+            </button>
+            {/* 
+            <button class={`tab-btn${opts.defaultTab === "folder" ? " active" : ""}`} data-tab="folder">
+              폴더
+            </button>
+            */}
           </div>
 
           {/* Tab panels — populated by inline script */}
-          <ul
-            class={`explorer-ul${opts.defaultTab === "year" ? " panel-active" : ""}`}
-            data-panel="year"
-            data-storage-key="tabbedExplorer-year"
-          />
-          <ul
-            class={`explorer-ul${opts.defaultTab === "folder" ? " panel-active" : ""}`}
-            data-panel="folder"
-            data-storage-key="tabbedExplorer-folder"
-          />
           <ul
             class={`explorer-ul${opts.defaultTab === "tag" ? " panel-active" : ""}`}
             data-panel="tag"
             data-storage-key="tabbedExplorer-tag"
           />
+          <ul
+            class={`explorer-ul${opts.defaultTab === "year" ? " panel-active" : ""}`}
+            data-panel="year"
+            data-storage-key="tabbedExplorer-year"
+          />
+          {/*
+          <ul
+            class={`explorer-ul${opts.defaultTab === "folder" ? " panel-active" : ""}`}
+            data-panel="folder"
+            data-storage-key="tabbedExplorer-folder"
+          />
+          */}
         </div>
       </div>
     )
