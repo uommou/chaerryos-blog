@@ -185,76 +185,117 @@ function populateTagPanel(
   currentSlug: FullSlug,
   entries: [FullSlug, ContentDetails][],
 ) {
-  // Build tag → posts map from frontmatter `tags` in each post's ContentDetails
-  const byTag = new Map<string, Array<{ slug: FullSlug; title: string; date: Date | null }>>()
+  // Build folder → { displayName, tags: Map<tagName, count> }
+  // Folder display name is taken from the first segment of filePath (preserves spaces/casing)
+  // Folder slug key is the first segment of the post's slug
+  const folderData = new Map<string, { displayName: string; tags: Map<string, number> }>()
 
   for (const [slug, details] of entries) {
     if (slug === "index" || slug.endsWith("/index")) continue
     if (!details.tags?.length) continue
 
-    // date arrives as an ISO string after JSON.parse, despite the Date type annotation
-    const rawDate = details.date as Date | string | undefined
-    const date = rawDate ? new Date(rawDate as string) : null
-    const validDate = date && !Number.isNaN(date.getTime()) ? date : null
+    const slugParts = slug.split("/")
+    if (slugParts.length < 2) continue // skip root-level posts (no folder)
+
+    const folderSlug = slugParts[0]
+    // filePath fallback: use slug if filePath is missing or not a string
+    const filePath = typeof details.filePath === "string" ? details.filePath : slug
+    const fileParts = filePath.split("/")
+    const displayName = fileParts.length > 1 ? fileParts[0] : folderSlug
+
+    if (!folderData.has(folderSlug)) {
+      folderData.set(folderSlug, { displayName, tags: new Map() })
+    }
+    const { tags } = folderData.get(folderSlug)!
 
     for (const tag of details.tags) {
       const t = tag.trim()
       if (!t) continue
-      if (!byTag.has(t)) byTag.set(t, [])
-      byTag.get(t)!.push({ slug, title: details.title || slug, date: validDate })
+      tags.set(t, (tags.get(t) ?? 0) + 1)
     }
   }
 
-  const sortedTags = [...byTag.keys()].sort((a, b) =>
-    a.localeCompare(b, undefined, { sensitivity: "base" }),
-  )
+  // Sort folders alphabetically by display name
+  const sortedFolders = [...folderData.keys()].sort((a, b) => {
+    const da = folderData.get(a)!.displayName
+    const db = folderData.get(b)!.displayName
+    return da.localeCompare(db, undefined, { sensitivity: "base" })
+  })
+
+  // Determine if current page is a tag page (e.g. slug = "tags/javascript")
+  const currentTag = currentSlug.startsWith("tags/") ? currentSlug.slice("tags/".length) : null
+
   ul.innerHTML = ""
 
-  for (const tag of sortedTags) {
-    const posts = byTag.get(tag)!.sort((a, b) => {
-      if (a.date && b.date) return b.date.getTime() - a.date.getTime()
-      if (a.date) return -1
-      if (b.date) return 1
-      return a.title.localeCompare(b.title)
-    })
+  for (const folderSlug of sortedFolders) {
+    const { displayName, tags } = folderData.get(folderSlug)!
+
+    // Sort tags alphabetically
+    const sortedTags = [...tags.keys()].sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" }),
+    )
 
     const li = document.createElement("li")
+
+    // Folder header (collapsible)
     const container = document.createElement("div")
     container.className = "folder-container"
-    container.dataset.folderpath = `tag-${tag}`
+    container.dataset.folderpath = `tagfolder-${folderSlug}`
 
     const svg = makeFolderSvg()
     const div = document.createElement("div")
     const btn = document.createElement("button")
     btn.className = "folder-button"
-    const span = document.createElement("span")
-    span.className = "folder-title"
-    span.textContent = tag
-    btn.appendChild(span)
+    const titleSpan = document.createElement("span")
+    titleSpan.className = "folder-title"
+    titleSpan.textContent = displayName
+    btn.appendChild(titleSpan)
     div.appendChild(btn)
     container.appendChild(svg)
     container.appendChild(div)
 
-    const hasCurrentPage = posts.some((p) => p.slug === currentSlug)
+    // Auto-open folder if its tag matches the current tag page
+    const hasCurrTag = currentTag !== null && sortedTags.includes(currentTag)
     const storageStates = getFolderStates("tabbedExplorer-tag")
-    const saved = storageStates.find((s) => s.path === `tag-${tag}`)?.collapsed
+    const saved = storageStates.find((s) => s.path === `tagfolder-${folderSlug}`)?.collapsed
     const isCollapsed = saved !== undefined ? saved : true
 
     const outer = document.createElement("div")
     outer.className = "folder-outer"
-    if (!isCollapsed || hasCurrentPage) outer.classList.add("open")
+    if (!isCollapsed || hasCurrTag) outer.classList.add("open")
 
+    // Tag list inside folder
     const innerUl = document.createElement("ul")
     innerUl.className = "content"
-    for (const post of posts) {
-      const postLi = document.createElement("li")
+
+    for (const tag of sortedTags) {
+      const count = tags.get(tag)!
+      const tagLi = document.createElement("li")
+
       const a = document.createElement("a")
-      a.href = resolveRelative(currentSlug, post.slug)
-      a.dataset.for = post.slug
-      a.textContent = post.title
-      if (currentSlug === post.slug) a.classList.add("active")
-      postLi.appendChild(a)
-      innerUl.appendChild(postLi)
+      // Use encodeURIComponent to handle Korean/spaces in tag names
+      a.href = resolveRelative(currentSlug, `tags/${encodeURIComponent(tag)}` as FullSlug)
+      a.className = "tag-item"
+      if (tag === currentTag) a.classList.add("active")
+
+      const hashSpan = document.createElement("span")
+      hashSpan.className = "tag-hash"
+      hashSpan.textContent = "#"
+      hashSpan.setAttribute("aria-hidden", "true")
+
+      const nameSpan = document.createElement("span")
+      nameSpan.className = "tag-name"
+      nameSpan.textContent = tag
+
+      const countSpan = document.createElement("span")
+      countSpan.className = "tag-count"
+      countSpan.textContent = String(count)
+
+      a.appendChild(hashSpan)
+      a.appendChild(nameSpan)
+      a.appendChild(countSpan)
+      tagLi.appendChild(a)
+      innerUl.appendChild(tagLi)
     }
 
     outer.appendChild(innerUl)
