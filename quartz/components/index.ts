@@ -12,6 +12,7 @@ import Spacer from "./Spacer"
 import TableOfContents from "./TableOfContents"
 import Explorer from "./Explorer"
 import YearExplorer from "./YearExplorer"
+import TabbedExplorer from "./TabbedExplorer"
 import TagList from "./TagList"
 import Graph from "./Graph"
 import Backlinks from "./Backlinks"
@@ -39,6 +40,7 @@ export {
   TableOfContents,
   Explorer,
   YearExplorer,
+  TabbedExplorer,
   TagList,
   Graph,
   Backlinks,

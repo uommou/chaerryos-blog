@@ -54,15 +54,7 @@ export const defaultContentPageLayout: PageLayout = {
         { Component: Component.ReaderMode() },
       ],
     }),
-    Component.Explorer({
-      title: "Folders",
-      filterFn: (node) => node.slugSegment !== "tags",
-    }),
-    Component.Explorer({
-      title: "Tags",
-      filterFn: (node) => node.slug.startsWith("tags"),
-    }),
-    Component.YearExplorer({ title: "Years" }),
+    Component.TabbedExplorer(),
   ],
   right: [
     Component.Graph(),
@@ -86,15 +78,7 @@ export const defaultListPageLayout: PageLayout = {
         { Component: Component.Darkmode() },
       ],
     }),
-    Component.Explorer({
-      title: "Folders",
-      filterFn: (node) => node.slugSegment !== "tags",
-    }),
-    Component.Explorer({
-      title: "Tags",
-      filterFn: (node) => node.slug.startsWith("tags"),
-    }),
-    Component.YearExplorer({ title: "Years" }),
+    Component.TabbedExplorer(),
   ],
   right: [],
 }
