@@ -184,22 +184,90 @@ function populateTagPanel(
   ul: HTMLUListElement,
   currentSlug: FullSlug,
   entries: [FullSlug, ContentDetails][],
-  behavior: "collapse" | "link",
-  defaultState: "collapsed" | "open",
 ) {
-  const trie = FileTrieNode.fromEntries(entries)
-  trie.filter((n) => n.slug.startsWith("tags"))
-  trie.sort(defaultSort)
+  // Build tag → posts map from frontmatter `tags` in each post's ContentDetails
+  const byTag = new Map<string, Array<{ slug: FullSlug; title: string; date: Date | null }>>()
+
+  for (const [slug, details] of entries) {
+    if (slug === "index" || slug.endsWith("/index")) continue
+    if (!details.tags?.length) continue
+
+    // date arrives as an ISO string after JSON.parse, despite the Date type annotation
+    const rawDate = details.date as Date | string | undefined
+    const date = rawDate ? new Date(rawDate as string) : null
+    const validDate = date && !Number.isNaN(date.getTime()) ? date : null
+
+    for (const tag of details.tags) {
+      const t = tag.trim()
+      if (!t) continue
+      if (!byTag.has(t)) byTag.set(t, [])
+      byTag.get(t)!.push({ slug, title: details.title || slug, date: validDate })
+    }
+  }
+
+  const sortedTags = [...byTag.keys()].sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" }),
+  )
   ul.innerHTML = ""
-  // Show tags/ children directly (skip the "tags" folder wrapper)
-  const tagsNode = trie.children.find((n) => n.slugSegment === "tags")
-  if (!tagsNode) return
-  for (const child of tagsNode.children) {
-    ul.appendChild(
-      child.isFolder
-        ? makeFolderNode(currentSlug, child, behavior, defaultState, "tabbedExplorer-tag")
-        : makeFileNode(currentSlug, child),
-    )
+
+  for (const tag of sortedTags) {
+    const posts = byTag.get(tag)!.sort((a, b) => {
+      if (a.date && b.date) return b.date.getTime() - a.date.getTime()
+      if (a.date) return -1
+      if (b.date) return 1
+      return a.title.localeCompare(b.title)
+    })
+
+    const li = document.createElement("li")
+    const container = document.createElement("div")
+    container.className = "folder-container"
+    container.dataset.folderpath = `tag-${tag}`
+
+    const svg = makeFolderSvg()
+    const div = document.createElement("div")
+    const btn = document.createElement("button")
+    btn.className = "folder-button"
+    const span = document.createElement("span")
+    span.className = "folder-title"
+    span.textContent = tag
+    btn.appendChild(span)
+    div.appendChild(btn)
+    container.appendChild(svg)
+    container.appendChild(div)
+
+    const hasCurrentPage = posts.some((p) => p.slug === currentSlug)
+    const storageStates = getFolderStates("tabbedExplorer-tag")
+    const saved = storageStates.find((s) => s.path === `tag-${tag}`)?.collapsed
+    const isCollapsed = saved !== undefined ? saved : true
+
+    const outer = document.createElement("div")
+    outer.className = "folder-outer"
+    if (!isCollapsed || hasCurrentPage) outer.classList.add("open")
+
+    const innerUl = document.createElement("ul")
+    innerUl.className = "content"
+    for (const post of posts) {
+      const postLi = document.createElement("li")
+      const a = document.createElement("a")
+      a.href = resolveRelative(currentSlug, post.slug)
+      a.dataset.for = post.slug
+      a.textContent = post.title
+      if (currentSlug === post.slug) a.classList.add("active")
+      postLi.appendChild(a)
+      innerUl.appendChild(postLi)
+    }
+
+    outer.appendChild(innerUl)
+    li.appendChild(container)
+    li.appendChild(outer)
+    ul.appendChild(li)
+
+    svg.addEventListener("click", toggleFolder)
+    btn.addEventListener("click", toggleFolder)
+    window.addCleanup(() => {
+      svg.removeEventListener("click", toggleFolder)
+      btn.removeEventListener("click", toggleFolder)
+    })
   }
 }
 
@@ -213,8 +281,10 @@ function populateYearPanel(
     // Skip tags and folder index pages
     if (slug.startsWith("tags/")) continue
     if (slug === "index" || slug.endsWith("/index")) continue
-    if (!details.date) continue
-    const date = new Date(details.date)
+    // date arrives as an ISO string after JSON.parse, despite the Date type annotation
+    const rawDate = details.date as Date | string | undefined
+    if (!rawDate) continue
+    const date = new Date(rawDate as string)
     if (Number.isNaN(date.getTime())) continue
     const year = date.getFullYear()
     if (!byYear.has(year)) byYear.set(year, [])
@@ -332,7 +402,7 @@ async function setupTabbedExplorers(currentSlug: FullSlug) {
 
     if (yearUl) populateYearPanel(yearUl, currentSlug, entries)
     if (folderUl) populateFolderPanel(folderUl, currentSlug, entries, behavior, defaultState)
-    if (tagUl) populateTagPanel(tagUl, currentSlug, entries, behavior, defaultState)
+    if (tagUl) populateTagPanel(tagUl, currentSlug, entries)
 
     // Activate the right tab
     switchTab(explorer, activeTab)
