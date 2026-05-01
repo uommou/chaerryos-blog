@@ -23,13 +23,19 @@ li.section-li {
   gap: 0.75rem;
 }
 
-a.section-title {
+.section-row > a.internal.section-title {
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--dark);
-  background-color: transparent;
-  padding: 0;
+
+  background: none !important;
+  background-color: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
