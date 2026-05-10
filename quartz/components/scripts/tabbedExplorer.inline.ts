@@ -317,26 +317,31 @@ function populateYearPanel(
   currentSlug: FullSlug,
   entries: [FullSlug, ContentDetails][],
 ) {
-  const byYear = new Map<number, Array<{ slug: FullSlug; title: string; date: Date }>>()
+  // Group by year → month → slugs
+  const byYear = new Map<number, Map<number, FullSlug[]>>()
   for (const [slug, details] of entries) {
-    // Skip tags and folder index pages
     if (slug.startsWith("tags/")) continue
     if (slug === "index" || slug.endsWith("/index")) continue
-    // date arrives as an ISO string after JSON.parse, despite the Date type annotation
     const rawDate = details.date as Date | string | undefined
     if (!rawDate) continue
     const date = new Date(rawDate as string)
     if (Number.isNaN(date.getTime())) continue
     const year = date.getFullYear()
-    if (!byYear.has(year)) byYear.set(year, [])
-    byYear.get(year)!.push({ slug, title: details.title ?? slug, date })
+    const month = date.getMonth() // 0-indexed
+    if (!byYear.has(year)) byYear.set(year, new Map())
+    const monthMap = byYear.get(year)!
+    if (!monthMap.has(month)) monthMap.set(month, [])
+    monthMap.get(month)!.push(slug as FullSlug)
   }
 
   const sortedYears = [...byYear.keys()].sort((a, b) => b - a)
   ul.innerHTML = ""
 
   for (const year of sortedYears) {
-    const posts = byYear.get(year)!.sort((a, b) => b.date.getTime() - a.date.getTime())
+    const monthMap = byYear.get(year)!
+    const allSlugsInYear = [...monthMap.values()].flat()
+    const hasCurrentPage = allSlugsInYear.includes(currentSlug)
+
     const li = document.createElement("li")
 
     const container = document.createElement("div")
@@ -347,34 +352,53 @@ function populateYearPanel(
     const div = document.createElement("div")
     const btn = document.createElement("button")
     btn.className = "folder-button"
-    const span = document.createElement("span")
-    span.className = "folder-title"
-    span.textContent = String(year)
-    btn.appendChild(span)
+
+    const titleSpan = document.createElement("span")
+    titleSpan.className = "folder-title"
+    titleSpan.textContent = String(year)
+
+    btn.appendChild(titleSpan)
     div.appendChild(btn)
     container.appendChild(svg)
     container.appendChild(div)
 
-    // Auto-open the year that contains the current page
-    const hasCurrentPage = posts.some((p) => p.slug === currentSlug)
     const storageStates = getFolderStates("tabbedExplorer-year")
     const saved = storageStates.find((s) => s.path === `year-${year}`)?.collapsed
     const isCollapsed = saved !== undefined ? saved : true
+
     const outer = document.createElement("div")
     outer.className = "folder-outer"
     if (!isCollapsed || hasCurrentPage) outer.classList.add("open")
 
     const innerUl = document.createElement("ul")
     innerUl.className = "content"
-    for (const post of posts) {
-      const postLi = document.createElement("li")
-      const a = document.createElement("a")
-      a.href = resolveRelative(currentSlug, post.slug)
-      a.dataset.for = post.slug
-      a.textContent = post.title
-      if (currentSlug === post.slug) a.classList.add("active")
-      postLi.appendChild(a)
-      innerUl.appendChild(postLi)
+
+    // Sort months newest-first
+    const sortedMonths = [...monthMap.keys()].sort((a, b) => b - a)
+
+    for (const month of sortedMonths) {
+      const slugsInMonth = monthMap.get(month)!
+      const count = slugsInMonth.length
+      const monthLabel = new Intl.DateTimeFormat("ko-KR", { month: "long" }).format(
+        new Date(year, month),
+      )
+
+      const monthLi = document.createElement("li")
+      const span = document.createElement("span")
+      span.className = "month-item"
+
+      const nameSpan = document.createElement("span")
+      nameSpan.className = "month-name"
+      nameSpan.textContent = monthLabel
+
+      const countSpan = document.createElement("span")
+      countSpan.className = "tag-count"
+      countSpan.textContent = String(count)
+
+      span.appendChild(nameSpan)
+      span.appendChild(countSpan)
+      monthLi.appendChild(span)
+      innerUl.appendChild(monthLi)
     }
 
     outer.appendChild(innerUl)
