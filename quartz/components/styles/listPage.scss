@@ -84,6 +84,38 @@ li.section-li > .tags {
   }
 }
 
+.year-group {
+  margin-top: 1.75rem;
+}
+
+.year-header {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--gray);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.25rem 0;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--lightgray);
+}
+
+.month-group {
+  margin-top: 0.75rem;
+
+  & > ul.section-ul {
+    margin-top: 0;
+  }
+}
+
+.month-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--gray);
+  opacity: 0.75;
+  margin: 0;
+  padding: 0.15rem 0;
+}
+
 // modifications in popover context
 .popover li.section-li > .tags {
   display: none;
